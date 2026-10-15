@@ -4,6 +4,7 @@ from functools import wraps
 from flask import Flask, request, redirect, url_for, session, render_template, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
+from agent_runtime import autonomous_chat
 BASE=Path(__file__).resolve().parent; DATA=Path(os.getenv('AGENT_DATA_DIR','/var/lib/proxmox-ai-agent')); DATA.mkdir(parents=True,exist_ok=True); DB=DATA/'agent.db'
 app=Flask(__name__); app.secret_key=os.getenv('AGENT_SECRET_KEY') or secrets.token_hex(32); app.config.update(SESSION_COOKIE_HTTPONLY=True,SESSION_COOKIE_SAMESITE='Lax')
 def conn():
@@ -53,7 +54,15 @@ def chat():
  text=request.form.get('message','').strip()
  if text:
   with conn() as c: hist=list(reversed(c.execute('SELECT role,content FROM messages ORDER BY id DESC LIMIT 20').fetchall())); c.execute('INSERT INTO messages(role,content,ts) VALUES(?,?,?)',('user',text,time.time()))
-  ans=model_reply(text,hist)
+  if request.form.get('mode') == 'autonomous':
+   base=get('api_base').strip(); model=get('model').strip(); key=get('api_key')
+   if not base or not model:
+    ans='Autonomni način nije pokrenut: prvo konfiguriraj API base URL i naziv modela u Postavkama.'
+   else:
+    try: ans=autonomous_chat(base,model,key,hist,text)
+    except Exception as e: ans=f'Autonomni zadatak nije dovršen: {type(e).__name__}: {e}'
+  else:
+   ans=model_reply(text,hist)
   with conn() as c: c.execute('INSERT INTO messages(role,content,ts) VALUES(?,?,?)',('assistant',ans,time.time()))
  return redirect(url_for('home')+'#chat')
 @app.post('/clear')
