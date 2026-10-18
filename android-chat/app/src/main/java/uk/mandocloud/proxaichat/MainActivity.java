@@ -2,12 +2,12 @@ package uk.mandocloud.proxaichat;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.os.Environment;
 import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
@@ -21,9 +21,11 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.graphics.Color;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 2417;
+    private static final String APK_URL = "https://github.com/MrAres095/Prox-ai-agent/releases/download/android-chat-latest/ProxAiChat.apk";
     private WebView web;
     private ProgressBar progress;
     private ValueCallback<Uri[]> uploadCallback;
@@ -46,11 +48,18 @@ public class MainActivity extends Activity {
         title.setTextSize(19);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView update = new TextView(this);
+        update.setText("↻ Ažuriraj");
+        update.setTextColor(Color.rgb(160, 205, 255));
+        update.setTextSize(14);
+        update.setPadding(10, 12, 12, 12);
+        update.setOnClickListener(v -> downloadUpdate());
+        bar.addView(update);
         TextView settings = new TextView(this);
         settings.setText("⋮");
         settings.setTextColor(Color.WHITE);
         settings.setTextSize(30);
-        settings.setPadding(16, 0, 8, 0);
+        settings.setPadding(10, 0, 8, 0);
         settings.setOnClickListener(v -> showServerSettings());
         bar.addView(settings);
         root.addView(bar);
@@ -67,9 +76,6 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
         web.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                String host = request.getUrl().getHost();
-                Uri base = Uri.parse(serverUrl);
-                if (host != null && host.equals(base.getHost())) return false;
                 return false;
             }
         });
@@ -92,6 +98,28 @@ public class MainActivity extends Activity {
         root.addView(web, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
         loadServer();
+    }
+
+    private void downloadUpdate() {
+        new AlertDialog.Builder(this)
+            .setTitle("Ažuriranje aplikacije")
+            .setMessage("Aplikacija će preuzeti najnoviji APK. Nakon preuzimanja otvori obavijest i potvrdi instalaciju. Android ne dopušta tihu instalaciju bez sistemske potvrde.")
+            .setNegativeButton("Odustani", null)
+            .setPositiveButton("Preuzmi", (d, w) -> {
+                try {
+                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(APK_URL));
+                    request.setTitle("Prox AI Chat — ažuriranje");
+                    request.setDescription("Preuzimanje najnovije verzije");
+                    request.setMimeType("application/vnd.android.package-archive");
+                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "ProxAiChat-update.apk");
+                    DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                    manager.enqueue(request);
+                    Toast.makeText(this, "Preuzimanje je pokrenuto. Instalaciju potvrdi iz obavijesti.", Toast.LENGTH_LONG).show();
+                } catch (Exception e) {
+                    new AlertDialog.Builder(this).setMessage("Nije moguće pokrenuti preuzimanje: " + e.getMessage()).setPositiveButton("OK", null).show();
+                }
+            }).show();
     }
 
     private void loadServer() {
