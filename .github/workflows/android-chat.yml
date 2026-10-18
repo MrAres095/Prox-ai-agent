@@ -5,6 +5,8 @@ on:
     paths:
       - 'android-chat/**'
       - '.github/workflows/android-chat.yml'
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,7 +25,14 @@ jobs:
           gradle-version: '8.9'
       - name: Build debug APK
         run: gradle assembleDebug
-      - uses: actions/upload-artifact@v4
+      - name: Prepare update APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/ProxAiChat.apk
+      - uses: softprops/action-gh-release@v2
         with:
-          name: prox-ai-chat-debug-apk
-          path: android-chat/app/build/outputs/apk/debug/app-debug.apk
+          tag_name: android-chat-latest
+          name: Prox AI Chat — latest build
+          body: Automatically updated APK for the in-app updater. This is a debug-signed build for testing.
+          prerelease: true
+          make_latest: false
+          files: android-chat/app/build/outputs/apk/debug/ProxAiChat.apk
+          overwrite_files: true
